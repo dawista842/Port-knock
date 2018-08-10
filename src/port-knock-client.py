@@ -7,7 +7,7 @@ import random
 
 class App:
 	appName = "port-knock"
-	connectPort = int()
+	orderedPort = int()
 	message = str()
 	randomInt = str()
 	seqenceArray = []
@@ -17,7 +17,6 @@ class App:
 	daemonPort = ""
 	sslCertPath = str()
 
-	# run:
 	def run(self):
 		showHelpFlag = False
 		showUnknownParameterFlag = False
@@ -40,7 +39,7 @@ class App:
 			if sys.argv[i] == "-d" or sys.argv[i] == "--destination":
 				if i+1 <= lastIndex:
 					self.connectAddress = sys.argv[i+1].split(":")[0]
-					self.connectPort = sys.argv[i+1].split(":")[1]
+					self.orderedPort = sys.argv[i+1].split(":")[1]
 					i = i+1
 				else:
 					showUnknownParameterFlag = True
@@ -53,7 +52,7 @@ class App:
 
 		elif showUnknownParameterFlag == True:
 			self.showUnknownParameter()
-		elif self.connectPort == None or self.connectAddress == None:
+		elif self.orderedPort == None or self.connectAddress == None:
 			self.showNeedAddressAndPort()
 		else:
 			self.loadSettings()
@@ -82,13 +81,12 @@ class App:
 
 			i = i+1
 			j = j+tmp
-		print self.seqenceArray
 			
 	# knockToPort:
 	# Send packets to various ports to unlock entire port
 	def knockToPort(self):
 		self.generateRandomInt()
-		self.message = "REQ" + self.connectPort + "; RDM" + self.randomInt
+		self.message = "REQ" + self.orderedPort + "; RDM" + self.randomInt
 		isOrdered = False
 
 		# Create SSL socket
@@ -108,6 +106,8 @@ class App:
 			data = clientSocket.recv(1024)
 			if data == "SRV_LISTENING":
 				print "[Client] Get SRV_LISTENING code"
+
+				# Send knock seqence
 				self.sendKnockSeq()
 				break
 
@@ -123,6 +123,7 @@ class App:
 #		configPath = "/etc/port-knock.conf"
 		configPath = "port-knock.conf"
 		configFile = open(configPath, 'r')
+
 		for line in configFile:
 			if line[0] != "#":
 				if line.split("=")[0] == "certPath":
@@ -141,10 +142,11 @@ class App:
 		print "[Client] Sending seqence of packets..."
 		knockSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
 		knockSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		clientMsg = "KNOCK" + str(self.orderedPort)
 
 		for port in self.seqenceArray:
 			print "[Client] Send packet to %s on port %d" % (self.connectAddress, port)
-			knockSocket.sendto("KNOCK", (self.connectAddress, port))
+			knockSocket.sendto(clientMsg, (self.connectAddress, port))
 
 	# showNeedAddressAndPort:
 	# Show information about address and port is needed
