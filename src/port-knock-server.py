@@ -39,12 +39,10 @@ class Daemon:
 			# Start thread for connection
 			thread.start_new_thread(self.onNewClient, (connection, clientAddress[0]))
 
-	# runSniffer:
-
 	def runSniffer(self, snifferPipe):
 		snifferSocket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
-#		snifferSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-#		snifferSocket.setblocking(0)
+		snifferSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		snifferSocket.setblocking(0)
 
 		while True:
 			# If there are any messages in the pipe then read them
@@ -58,27 +56,43 @@ class Daemon:
 				try:
 					packet = snifferSocket.recvfrom(65565)
 					srcIpAddress, dstPort, protocol, data = self.unpackFrame(packet)
-					if data == "KNOCK":
-#						self.checkReceivedPacket(srcIpAddress, srcPort)
-						print "[Sniffer] Get packet from '%s:%d': %s" % (srcIpAddress, dstPort, data)
+					if protocol == 17:
+						code = data[:5]
+						orderedPort = int(data[5:])
+						if code == "KNOCK":
+							print "[Sniffer] Get packet from %s destined to port %d: %s" % (srcIpAddress, dstPort, data)
+							self.checkReceivedPacket(srcIpAddress, dstPort, orderedPort)
 				except socket.error, e:
 					continue
 
-#
-#	while True:
-#		if self.dbArray[i][0] == srcIpAddress:
-#			if self.dbArray[i][2][0] == srcPort and content == "KNOCK":
-#				if len(self.dbArray[i][2]) == 1:
-#					unblockFirewall(srcIpAddress, self.dbArray[i][1])
-#
-#					# Sending "PASS" code to host which means that everything is OK
-#					snifferPipe.send("PASS")
-#					del self.dbArray[i][2][0]
-#			i = i+1
+	def checkReceivedPacket(self, srcIpAddress, dstPort, orderedPort):
 
-	def checkReceivedPacket(self, srcIpAddress, srcPort):
 		for infoArray in self.dbArray:
-			print infoArray
+			if srcIpAddress == infoArray[0] and orderedPort == infoArray[1]:
+
+				# If ports match
+				if infoArray[2][0] == dstPort:
+
+					# If there are others seqence numbers
+					# then remove first of them
+					if len(infoArray[2]) > 1:
+						print "[Sniffer] Found and removed port %s from seqence." % infoArray[2][0]
+						del infoArray[2][0]
+						return
+
+					# If it is last seqence number, then
+					# remove item from "self.dbArray" and
+					# order unblock firewall.
+					else:
+						self.dbArray.remove(infoArray)
+						self.unblockFirewall(infoArray)
+						snifferPipe.send("PASS")
+						return
+
+				# Wrong seqence, return error
+				else:
+					snifferPipe.send("ERROR")
+					return
 
 	def computeCode(self, clientAddress, data):
 		randomInt = data[11:20]
@@ -92,7 +106,7 @@ class Daemon:
 			if tmp > 4:
 				tmp = 4
 			tmpRandomExtended = randomInt+randomInt+randomInt+randomInt
-			seqenceArray.append(tmpRandomExtended[j:j+tmp])
+			seqenceArray.append(int(tmpRandomExtended[j:j+tmp]))
 
 			i = i+1
 			j = j+tmp
@@ -130,7 +144,7 @@ class Daemon:
 				# Wait for the moment because sniffer needs
 				# some time to receive "infoArray", add it
 				# to "self.dbArray" and switch to listen mode
-				time.sleep(0.5)
+				time.sleep(0.1)
 
 				# Send to client info that sniffer is ready
 				connection.sendall("SRV_LISTENING")
@@ -149,7 +163,7 @@ class Daemon:
 				connection.close()
 			break
 
-	def unblockFirewall(self, srcIpAddress, orderedPort):
+	def unblockFirewall(self, infoArray):
 		print "[Sniffer] Adding rule to firewall"
 
 	def unpackFrame(self, packet):
@@ -172,7 +186,7 @@ class Daemon:
 		udpHeaderLength = 8
 		udpHeader = packet[ipHeaderLength:ipHeaderLength+udpHeaderLength]
 		udpHeaderUnpacked = unpack('!HHHH', udpHeader)
-		dstPort = udpHeaderUnpacked[1]
+		dstPort = int(udpHeaderUnpacked[1])
 
 		# Data
 		headerSize = ipHeaderLength + udpHeaderLength
