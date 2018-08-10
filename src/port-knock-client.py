@@ -11,7 +11,6 @@ class App:
 	message = str()
 	randomInt = str()
 	seqenceArray = []
-	seqenceArraySize = int()
 
 	# Unlock entire port
 	connectAddres = str()
@@ -78,12 +77,12 @@ class App:
 			if tmp > 4:
 				tmp = 4
 			tmpRandomExtended = self.randomInt + self.randomInt + self.randomInt + self.randomInt
-			self.seqenceArray.append(tmpRandomExtended[j:j+tmp])
+			self.seqenceArray.append(int(tmpRandomExtended[j:j+tmp]))
 
 			i = i+1
 			j = j+tmp
+		print self.seqenceArray
 			
-
 	# knockToPort:
 	# Send packets to various ports to unlock entire port
 	def knockToPort(self):
@@ -91,7 +90,7 @@ class App:
 		self.message = "REQ" + self.connectPort + "; RDM" + self.randomInt
 		isOrdered = False
 
-		# Create ssl socket
+		# Create SSL socket
 		clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		clientSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		sslSocket = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
@@ -107,6 +106,7 @@ class App:
 		while True:
 			data = clientSocket.recv(1024)
 			if data == "SRV_LISTENING":
+				print "[Client] Get SRV_LISTENING code"
 				self.sendKnockSeq()
 				break
 
@@ -137,14 +137,13 @@ class App:
 	def sendKnockSeq(self):
 
 		# Send seqence of packets
-		print "Sending seqence of packets..."
-		knockSocketUdp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
-		knockSocketUdp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		print "[Client] Sending seqence of packets..."
+		knockSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
+		knockSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-		i = 0
-		while i < self.seqenceArraySize:
-			knockSocketUdp.sendto("KNOCK", (self.connectAddress, self.sequenceArray[i]))
-			i = i+1
+		for port in self.seqenceArray:
+			print "[Client] Send packet to %s on port %d" % (self.connectAddress, port)
+			knockSocket.sendto("KNOCK", (self.connectAddress, port))
 
 	# showNeedAddressAndPort:
 	# Show information about address and port is needed
