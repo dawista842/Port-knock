@@ -5,23 +5,14 @@ import sys
 import ssl
 import time
 import thread
-import struct
 from multiprocessing import Process, Array, Value, Pipe
+from struct import *
 
 class Daemon:
 	appName = "port-knockd"
 	host = ''
 	sslCertPath = str()
 	dbArray = []
-
-	# Shared memory between processes (server -> sniffer)
-	seqence = Array('i', 0)
-	srcIp = Value(ctypes.c_char_p, "")
-	orderedPort = Value('i', 0)
-	isNew = Value('i', 0)
-
-	# Shared memory between processes (sniffer -> server)
-#	srcIpPass = Value
 
 	# Symbolic name meaning all available interfaces
 	port = 36886
@@ -32,7 +23,6 @@ class Daemon:
 
 		daemonSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		daemonSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-#		daemonSocket.setblocking(0)
 		sslSocket = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
 		sslSocket.verify_mode = ssl.CERT_REQUIRED
 		sslSocket.check_hostname = True
@@ -44,37 +34,50 @@ class Daemon:
 
 		while True:
 			# Wait for connection
-			print >> sys.stderr, 'Waiting for a connection...'
 			connection, clientAddress = daemonSocket.accept()
 
-			thread.start_new_thread(self.onNewClient, (connection, clientAddress))
+			# Start thread for connection
+			thread.start_new_thread(self.onNewClient, (connection, clientAddress[0]))
 
 	def runSniffer(self, snifferPipe):
-		snifferSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		snifferSocket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
+#		snifferSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+#		snifferSocket.setblocking(0)
 
 		while True:
 			# If there are any messages in the pipe then read them
 			if snifferPipe.poll():
 				infoArray = snifferPipe.recv()
 				self.dbArray.append(infoArray)
+				print "[Sniffer] Get seqence: " + str(infoArray)
+
 			# If it's not, then check if there are any UDP port knock packets from network
 			else:
-				data, srcIpAddress = snifferSocket.recvfrom(1024)
-				srcPort = getnameinfo()[1]
+				try:
+					packet = snifferSocket.recvfrom(65565)
+					srcIpAddress, dstPort, protocol, data = self.unpackFrame(packet)
+					if data == "KNOCK":
+#						self.checkReceivedPacket(srcIpAddress, srcPort)
+						print "[Sniffer] Get packet from '%s:%d': %s" % (srcIpAddress, dstPort, data)
+				except socket.error, e:
+					continue
 
-				i = 0
-				while True:
-					if self.dbArray[i][0] == srcIpAddress:
-						if self.dbArray[i][2][0] == srcPort and content == "KNOCK":
-							if len(self.dbArray[i][2]) == 1:
-								unblockFirewall(srcIpAddress, self.dbArray[i][1])
+#
+#	while True:
+#		if self.dbArray[i][0] == srcIpAddress:
+#			if self.dbArray[i][2][0] == srcPort and content == "KNOCK":
+#				if len(self.dbArray[i][2]) == 1:
+#					unblockFirewall(srcIpAddress, self.dbArray[i][1])
+#
+#					# Sending "PASS" code to host which means that everything is OK
+#					snifferPipe.send("PASS")
+#					del self.dbArray[i][2][0]
+#			i = i+1
 
-								# Sending "PASS" code to host which means that everything is OK
-								snifferPipe.send("PASS")
-							del self.dbArray[i][2][0]
-					i = i+1				
+	def checkReceivedPacket(self, srcIpAddress, srcPort):
+		for infoArray in self.dbArray:
+			print infoArray
 
-			
 	def computeCode(self, clientAddress, data):
 		randomInt = data[11:20]
 		orderedPort = int(data[3:6])
@@ -93,6 +96,7 @@ class Daemon:
 			j = j+tmp
 
 		infoArray = [clientAddress, orderedPort, seqenceArray]
+		print "[Server] Seqence is " + str(seqenceArray)[1:-1]
 		return infoArray
 
 	def loadSettings(self):
@@ -107,39 +111,78 @@ class Daemon:
 					self.sslCertPath = self.sslCertPath[:-1]
 
 	def onNewClient(self, connection, clientAddress):
-		print >> sys.stderr, 'Connection from: ', clientAddress
+		print "[Server] Connection from: " + str(clientAddress)
 
 		# Receive the data from client and compute random code.
 		# The result will be in "infoArray[2]".
 		while True:
 			data = connection.recv(1024)
+
 			if data != "":
-				print >> sys.stderr, 'Received "%s"' % data
+				print "[Server] Received: %s" % data
 				infoArray = self.computeCode(clientAddress, data)
 
 				# Send to sniffer process info about new client and it's knock seqence
 				serverPipe.send(infoArray)
+				
+				# Wait for the moment because sniffer needs
+				# some time to receive "infoArray", add it
+				# to "self.dbArray" and switch to listen mode
+				time.sleep(0.5)
 
 				# Send to client info that sniffer is ready
 				connection.sendall("SRV_LISTENING")
 
-				if serverPipe.recv() == "PASS":
-					connection.sendall("PASS")
-				elif serverPipe.recv() == "ERROR":
-					connection.sendall("ERROR")
-				elif serverPipe.recv() == "TIMEOUT":
-					connection.sendall("TIMEOUT")
+				while True:
+					if snifferPipe.poll():
+						snifferMsg = serverPipe.recv()
 
+						if snifferMsg == "PASS":
+							connection.sendall("PASS")
+						elif snifferMsg == "ERROR":
+							connection.sendall("ERROR")
+						elif snifferMsg == "TIMEOUT":
+							connection.sendall("TIMEOUT")
+					break
 				connection.close()
 			break
 
 	def unblockFirewall(self, srcIpAddress, orderedPort):
-		print "Adding rule to firewall"
+		print "[Sniffer] Adding rule to firewall"
 
+	def unpackFrame(self, packet):
+		# IP header
+		packet = packet[0]
+		ipHeader = packet[0:20]
+		ipHeaderUnpacked = unpack('!BBHHHBBH4s4s', ipHeader)
+		versionIhl = ipHeaderUnpacked[0]
+		version = versionIhl >> 4
+		ihl = versionIhl & 0xF
+		ipHeaderLength = ihl * 4
+
+		# Protocol
+		protocol = ipHeaderUnpacked[6]
+
+		# Source IP address
+		srcIpAddress = socket.inet_ntoa(ipHeaderUnpacked[8])
+
+		# Destination port
+		udpHeaderLength = 8
+		udpHeader = packet[ipHeaderLength:ipHeaderLength+udpHeaderLength]
+		udpHeaderUnpacked = unpack('!HHHH', udpHeader)
+		dstPort = udpHeaderUnpacked[1]
+
+		# Data
+		headerSize = ipHeaderLength + udpHeaderLength
+		dataSize = len(packet) - headerSize
+		data = packet[headerSize:]
+
+		return (srcIpAddress, dstPort, protocol, data)
 
 if __name__ == '__main__':
 	daemon = Daemon()
 	serverPipe, snifferPipe = Pipe()
+	print "[Daemon] Starting daemon"
 
 	server = Process(target=daemon.runServer, args=(serverPipe,))
 	server.start()
