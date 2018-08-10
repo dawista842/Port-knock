@@ -39,6 +39,8 @@ class Daemon:
 			# Start thread for connection
 			thread.start_new_thread(self.onNewClient, (connection, clientAddress[0]))
 
+	# runSniffer:
+
 	def runSniffer(self, snifferPipe):
 		snifferSocket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
 #		snifferSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
