@@ -16,12 +16,18 @@ class App:
 	connectAddres = str()
 	daemonPort = ""
 	sslCertPath = str()
+	requestTimeout = int()
+	firewallTimeout = int()
 
+	# run:
+	# Main method where everything starts from here.
 	def run(self):
 		showHelpFlag = False
 		showUnknownParameterFlag = False
 		lastIndex = len(sys.argv)-1
 		i = 1
+
+		# Read arguments passed to the program via cmd
 		while (i <= lastIndex):
 			if sys.argv[i] == "-p" or sys.argv[i] == "--port":
 				if i+1 <= lastIndex:
@@ -47,6 +53,7 @@ class App:
 				showHelpFlag = True
 			i = i+1
 
+		# Action
 		if showHelpFlag == True or len(sys.argv) == 1:
 			self.showHelp()
 
@@ -58,6 +65,8 @@ class App:
 			self.loadSettings()
 			self.knockToPort()
 
+	# generateRandomInt:
+	# Generates random number which will be used to generate seqence.
 	def generateRandomInt(self):
 		self.randomInt = str(random.randint(100000000, 999999999))
 
@@ -68,10 +77,14 @@ class App:
 			i = i+1
 		self.generateSeqence()
 
+	# generateSeqence:
+	# Generates packet seqence using random number
+	# (generated in previous step).
 	def generateSeqence(self):
 		i=0
 		j=0
 
+		# It's kind of Magic...
 		while i < int(self.randomInt[4]):
 			tmp = int(self.randomInt[-i-1])
 			if tmp > 4:
@@ -102,6 +115,8 @@ class App:
 		clientSocket.connect((self.connectAddress, self.daemonPort))
 		clientSocket.sendall(self.message)
 
+		# Waiting for "SRV_LISTENING" which means that server
+		# listen our packet seqence
 		while True:
 			data = clientSocket.recv(1024)
 			if data == "SRV_LISTENING":
@@ -111,7 +126,8 @@ class App:
 				self.sendKnockSeq()
 				break
 
-		# After sending knock seqence we are here, waiting for "PASS" code
+		# After sending knock seqence we are here, waiting
+		# for "PASS" code
 		while True:
 			data = clientSocket.recv(1024)
 			if data == "PASS":
@@ -119,6 +135,8 @@ class App:
 				print "Port knock procedure finished successfully!"
 				break
 
+	# loadSettings:
+	# Loads settings from configuration file.
 	def loadSettings(self):
 #		configPath = "/etc/port-knock.conf"
 		configPath = "port-knock.conf"
@@ -134,8 +152,18 @@ class App:
 					self.daemonPort = line.split("=")[1]
 					self.daemonPort = self.daemonPort.replace('"','')
 					self.daemonPort = int(self.daemonPort[:-1])
+				if line.split("=")[0] == "requestTimeout":
+					self.requestTimeout = line.split("=")[1]
+					self.requestTimeout = self.requestTimeout.replace('"','')
+					self.requestTimeout = int(self.requestTimeout[:-1])
+				if line.split("=")[0] == "firewallTimeout":
+					self.firewallTimeout = line.split("=")[1]
+					self.firewallTimeout = self.firewallTimeout.replace('"','')
+					self.firewallTimeout = int(self.firewallTimeout[:-1])
 		configFile.close()
 
+	# sendKnockSeq:
+	# Sends packet seqence (knock-knock!).
 	def sendKnockSeq(self):
 
 		# Send seqence of packets
@@ -154,7 +182,7 @@ class App:
 		print ("Missing port or address of destination device")
 
 	# showhelp:
-	# Shows list of available parameters
+	# Shows list of available parameters.
 	def showHelp(self):
 		help = """
 Syntax: %s [OPTION] [VALUE]
@@ -172,7 +200,7 @@ List of available parameters:
 		print (help %(self.appName, self.appName, self.appName))
 
 	# showUnknownParameter:
-	# Show unknown parameter info
+	# Show unknown parameter info.
 	def showUnknownParameter(self):
 		print ("Unknown parameter or value. Use '" + self.appName + " -h' or '" + self.appName + " --help' to list all available parameters.")
 
