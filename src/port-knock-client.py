@@ -1,4 +1,5 @@
 #! /usr/bin/env python2
+import os
 import socket
 import ssl
 import sys
@@ -63,6 +64,12 @@ class App:
 			self.showNeedAddressAndPort()
 		else:
 			self.loadSettings()
+
+			# If cert file not exists then show message nad exit
+			if not os.path.exists(self.sslCertPath):
+				print "[Daemon] Bad path or no cert file."
+				exit()
+
 			self.knockToPort()
 
 	# generateRandomInt:
@@ -131,9 +138,13 @@ class App:
 		while True:
 			data = clientSocket.recv(1024)
 			if data == "PASS":
-				clientSocket.close()
-				print "Port knock procedure finished successfully!"
-				break
+				print "[Client] Port knock procedure finished successfully!"
+			elif data == "TIMEOUT":
+				print "[Client] Port knock procedure expired (timeout)."
+			elif data == "ERROR":
+				print "[Client] Port knock procedure error (bad seqence)."
+			clientSocket.close()
+			break
 
 	# loadSettings:
 	# Loads settings from configuration file.
