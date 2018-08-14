@@ -1,5 +1,7 @@
 #! /usr/bin/env python2
 import ctypes
+import datetime
+import os
 import socket
 import sys
 import ssl
@@ -12,14 +14,12 @@ class Daemon:
 	appName = "port-knockd"
 	host = ''
 	dbArray = []
-	requestTimeout = int()
-	firewallTimeout = int()
+	settingsArray = []
 
 	# runServer:
 	# Main function of the server process.
 	def runServer(self, serverPipe, settingsArray):
-		self.requestTimeout = settingsArray[2]
-		self.firewallTimeout = settingsArray[3]
+		self.settingsArray = settingsArray
 
 		# Create SSL socket
 		daemonSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -43,8 +43,7 @@ class Daemon:
 	# runSniffer:
 	# Main function of the sniffer process.
 	def runSniffer(self, snifferPipe, settingsArray):
-		self.requestTimeout = settingsArray[2]
-		self.firewallTimeout = settingsArray[3]
+		self.settingsArray = settingsArray
 
 		snifferSocket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
 		snifferSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -55,7 +54,7 @@ class Daemon:
 			if snifferPipe.poll():
 				infoArray = snifferPipe.recv()
 				self.dbArray.append(infoArray)
-				print "[Sniffer] Get seqence: " + str(infoArray)
+				self.showAndLog("[Sniffer] Get seqence: " + str(infoArray))
 
 			# If it's not, then check if there are any UDP port knock packets from network
 			else:
@@ -69,7 +68,7 @@ class Daemon:
 						except:
 							continue
 						if code == "KNOCK":
-							print "[Sniffer] Get packet from %s destined to port %d: %s" % (srcIpAddress, dstPort, data)
+							self.showAndLog("[Sniffer] Get packet from %s destined to port %d: %s" % (srcIpAddress, dstPort, data))
 							self.checkReceivedPacket(snifferPipe, srcIpAddress, dstPort, orderedPort)
 				except socket.error, e:
 					continue
@@ -87,10 +86,10 @@ class Daemon:
 					# If there are others seqence numbers
 					# then remove first of them
 					if len(infoArray[2]) > 1:
-						if (infoArray[3]+self.requestTimeout) <= time.time():
-							print "[Sniffer] Found and removed port %s from seqence." % infoArray[2][0]
+						if (infoArray[3]+self.settingsArray[3]) <= time.time():
+							self.showAndLog("[Sniffer] Found and removed port %s from seqence." % infoArray[2][0])
 						else:
-							print "[Sniffer] Reqest timeout"
+							self.showAndLog("[Sniffer] Reqest timeout")
 							snifferPipe.send("TIMEOUT")
 						del infoArray[2][0]
 						return
@@ -112,8 +111,10 @@ class Daemon:
 	# computeCode:
 	# It generates seqences from random numbers.
 	def computeCode(self, clientAddress, data):
-		randomInt = data[11:20]
-		orderedPort = int(data[3:6])
+		orderedPort = data[3:].split(";")[0]
+		randomIntStart = len(orderedPort)+8
+		randomInt = data[randomIntStart:randomIntStart+9]
+		orderedPort = int(orderedPort)
 		seqenceArray = []
 
 		i=0
@@ -129,7 +130,7 @@ class Daemon:
 			j = j+tmp
 
 		infoArray = [clientAddress, orderedPort, seqenceArray, time.time()]
-		print "[Server] Seqence is " + str(seqenceArray)[1:-1]
+		self.showAndLog("[Server] Seqence is " + str(seqenceArray)[1:-1])
 		return infoArray
 
 	# loadSettings:
@@ -156,13 +157,25 @@ class Daemon:
 					firewallTimeout = line.split("=")[1]
 					firewallTimeout = firewallTimeout.replace('"', '')
 					firewallTimeout = int(firewallTimeout[:-1])
-		settingsArray = [sslCertPath, port, requestTimeout, firewallTimeout]
+				if line.split("=")[0] == "logPath":
+					logPath = line.split("=")[1]
+					logPath = logPath.replace('"', '')
+					logPath = logPath[:-1]
+		settingsArray = [sslCertPath, port, requestTimeout, firewallTimeout, logPath]
 		return settingsArray
+
+	# showAndLog:
+	# Shows msg and logs it to log file.
+	def showAndLog(self, msg):
+		print msg
+		logFile = open(settingsArray[4], 'a')
+		logFile.write("<" + str(datetime.datetime.now()) + "> " + msg + "\n")
+		logFile.close()
 
 	# onNewClient:
 	# If new host connects this function handling it.
 	def onNewClient(self, connection, clientAddress):
-		print "[Server] Connection from: " + str(clientAddress)
+		self.showAndLog("[Server] Connection from: " + str(clientAddress))
 
 		# Receive the data from client and compute random code.
 		# The result will be in "infoArray[2]".
@@ -170,7 +183,7 @@ class Daemon:
 			data = connection.recv(1024)
 
 			if data != "":
-				print "[Server] Received: %s" % data
+				self.showAndLog("[Server] Received: %s" % data)
 				infoArray = self.computeCode(clientAddress, data)
 
 				# Send to sniffer process info about new client and it's knock seqence
@@ -202,7 +215,7 @@ class Daemon:
 	# If host send right seqence then this method is responsible for
 	# add a rule to firewall to unblock ordered port.
 	def unblockFirewall(self, infoArray):
-		print "[Sniffer] Adding rule to firewall"
+		self.showAndLog("[Sniffer] Adding rule to firewall for host %s and port %d." % (infoArray[0], infoArray[1]))
 
 	# unpackFrame:
 	# When packet arrive to raw socket, then this method unpack it.
@@ -238,6 +251,15 @@ class Daemon:
 if __name__ == '__main__':
 	daemon = Daemon()
 	settingsArray = daemon.loadSettings()
+
+	# If cert file not exists then show message and exit
+	if not os.path.exists(settingsArray[0]):
+		print "[Daemon] Bad path or no cert file."
+		exit()
+	# If log path is not set then use default
+	if settingsArray[4] == "":
+		settingsArray[4] = "/var/log/port-knock.log"
+
 	serverPipe, snifferPipe = Pipe()
 	print "[Daemon] Starting daemon"
 
