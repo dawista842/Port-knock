@@ -11,25 +11,26 @@ from struct import *
 class Daemon:
 	appName = "port-knockd"
 	host = ''
-	sslCertPath = str()
 	dbArray = []
+	requestTimeout = int()
+	firewallTimeout = int()
 
-	# Symbolic name meaning all available interfaces
-	port = 36886
+	# runServer:
+	# Main function of the server process.
+	def runServer(self, serverPipe, settingsArray):
+		self.requestTimeout = settingsArray[2]
+		self.firewallTimeout = settingsArray[3]
 
-	# Arbitrary non-privileged port
-	def runServer(self, serverPipe):
-		self.loadSettings()
-
+		# Create SSL socket
 		daemonSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		daemonSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		sslSocket = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
 		sslSocket.verify_mode = ssl.CERT_REQUIRED
 		sslSocket.check_hostname = True
-		sslSocket.load_verify_locations(self.sslCertPath)
+		sslSocket.load_verify_locations(settingsArray[0])
 		sslSocket.wrap_socket(daemonSocket, server_hostname="PN")
 
-		daemonSocket.bind((self.host, self.port))
+		daemonSocket.bind((self.host, settingsArray[1]))
 		daemonSocket.listen(1)
 
 		while True:
@@ -39,7 +40,12 @@ class Daemon:
 			# Start thread for connection
 			thread.start_new_thread(self.onNewClient, (connection, clientAddress[0]))
 
-	def runSniffer(self, snifferPipe):
+	# runSniffer:
+	# Main function of the sniffer process.
+	def runSniffer(self, snifferPipe, settingsArray):
+		self.requestTimeout = settingsArray[2]
+		self.firewallTimeout = settingsArray[3]
+
 		snifferSocket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
 		snifferSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		snifferSocket.setblocking(0)
@@ -58,14 +64,19 @@ class Daemon:
 					srcIpAddress, dstPort, protocol, data = self.unpackFrame(packet)
 					if protocol == 17:
 						code = data[:5]
-						orderedPort = int(data[5:])
+						try:
+							orderedPort = int(data[5:])
+						except:
+							continue
 						if code == "KNOCK":
 							print "[Sniffer] Get packet from %s destined to port %d: %s" % (srcIpAddress, dstPort, data)
-							self.checkReceivedPacket(srcIpAddress, dstPort, orderedPort)
+							self.checkReceivedPacket(snifferPipe, srcIpAddress, dstPort, orderedPort)
 				except socket.error, e:
 					continue
 
-	def checkReceivedPacket(self, srcIpAddress, dstPort, orderedPort):
+	# checkReceivedPacket:
+	# Check if packet match to the seqence.
+	def checkReceivedPacket(self, snifferPipe, srcIpAddress, dstPort, orderedPort):
 
 		for infoArray in self.dbArray:
 			if srcIpAddress == infoArray[0] and orderedPort == infoArray[1]:
@@ -76,7 +87,11 @@ class Daemon:
 					# If there are others seqence numbers
 					# then remove first of them
 					if len(infoArray[2]) > 1:
-						print "[Sniffer] Found and removed port %s from seqence." % infoArray[2][0]
+						if (infoArray[3]+self.requestTimeout) <= time.time():
+							print "[Sniffer] Found and removed port %s from seqence." % infoArray[2][0]
+						else:
+							print "[Sniffer] Reqest timeout"
+							snifferPipe.send("TIMEOUT")
 						del infoArray[2][0]
 						return
 
@@ -94,6 +109,8 @@ class Daemon:
 					snifferPipe.send("ERROR")
 					return
 
+	# computeCode:
+	# It generates seqences from random numbers.
 	def computeCode(self, clientAddress, data):
 		randomInt = data[11:20]
 		orderedPort = int(data[3:6])
@@ -111,10 +128,12 @@ class Daemon:
 			i = i+1
 			j = j+tmp
 
-		infoArray = [clientAddress, orderedPort, seqenceArray]
+		infoArray = [clientAddress, orderedPort, seqenceArray, time.time()]
 		print "[Server] Seqence is " + str(seqenceArray)[1:-1]
 		return infoArray
 
+	# loadSettings:
+	# Loads settings from /etc/port-knock.conf file and configures daemon.
 	def loadSettings(self):
 #		configPath = "/etc/port-knock.conf"
 		configPath = "port-knock.conf"
@@ -122,10 +141,26 @@ class Daemon:
 		for line in configFile:
 			if line[0] != "#":
 				if line.split("=")[0] == "certPath":
-					self.sslCertPath = line.split("=")[1]
-					self.sslCertPath = self.sslCertPath.replace('"', '')
-					self.sslCertPath = self.sslCertPath[:-1]
+					sslCertPath = line.split("=")[1]
+					sslCertPath = sslCertPath.replace('"', '')
+					sslCertPath = sslCertPath[:-1]
+				if line.split("=")[0] == "port":
+					port = line.split("=")[1]
+					port = port.replace('"', '')
+					port = int(port[:-1])
+				if line.split("=")[0] == "requestTimeout":
+					requestTimeout = line.split("=")[1]
+					requestTimeout = requestTimeout.replace('"', '')
+					requestTimeout = int(requestTimeout[:-1])
+				if line.split("=")[0] == "firewallTimeout":
+					firewallTimeout = line.split("=")[1]
+					firewallTimeout = firewallTimeout.replace('"', '')
+					firewallTimeout = int(firewallTimeout[:-1])
+		settingsArray = [sslCertPath, port, requestTimeout, firewallTimeout]
+		return settingsArray
 
+	# onNewClient:
+	# If new host connects this function handling it.
 	def onNewClient(self, connection, clientAddress):
 		print "[Server] Connection from: " + str(clientAddress)
 
@@ -150,7 +185,7 @@ class Daemon:
 				connection.sendall("SRV_LISTENING")
 
 				while True:
-					if snifferPipe.poll():
+					if serverPipe.poll():
 						snifferMsg = serverPipe.recv()
 
 						if snifferMsg == "PASS":
@@ -159,13 +194,18 @@ class Daemon:
 							connection.sendall("ERROR")
 						elif snifferMsg == "TIMEOUT":
 							connection.sendall("TIMEOUT")
-					break
+						break
 				connection.close()
-			break
+				break
 
+	# unblockFirewall:
+	# If host send right seqence then this method is responsible for
+	# add a rule to firewall to unblock ordered port.
 	def unblockFirewall(self, infoArray):
 		print "[Sniffer] Adding rule to firewall"
 
+	# unpackFrame:
+	# When packet arrive to raw socket, then this method unpack it.
 	def unpackFrame(self, packet):
 		# IP header
 		packet = packet[0]
@@ -197,10 +237,11 @@ class Daemon:
 
 if __name__ == '__main__':
 	daemon = Daemon()
+	settingsArray = daemon.loadSettings()
 	serverPipe, snifferPipe = Pipe()
 	print "[Daemon] Starting daemon"
 
-	server = Process(target=daemon.runServer, args=(serverPipe,))
+	server = Process(target=daemon.runServer, args=(serverPipe, settingsArray))
 	server.start()
-	sniffer = Process(target=daemon.runSniffer, args=(snifferPipe,))
+	sniffer = Process(target=daemon.runSniffer, args=(snifferPipe, settingsArray))
 	sniffer.start()
