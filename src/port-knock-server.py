@@ -1,4 +1,5 @@
 #! /usr/bin/env python2
+import base64
 import ctypes
 import datetime
 import os
@@ -7,7 +8,7 @@ import sys
 import ssl
 import time
 import thread
-from multiprocessing import Process, Array, Value, Pipe
+from multiprocessing import Process, Pipe
 from struct import *
 
 class Daemon:
@@ -64,7 +65,8 @@ class Daemon:
 					if protocol == 17:
 						code = data[:5]
 						try:
-							orderedPort = int(data[5:])
+							orderedPortEncoded = self.decodeBase64(infoArray[4], data[5:])
+							orderedPort = int(orderedPortEncoded)
 						except:
 							continue
 						if code == "KNOCK":
@@ -86,7 +88,7 @@ class Daemon:
 					# If there are others seqence numbers
 					# then remove first of them
 					if len(infoArray[2]) > 1:
-						if (infoArray[3]+self.settingsArray[3]) <= time.time():
+						if ((infoArray[3]+self.settingsArray[3]) <= time.time()) or (settingsArray[3] <= -1):
 							self.showAndLog("[Sniffer] Found and removed port %s from seqence." % infoArray[2][0])
 						else:
 							self.showAndLog("[Sniffer] Reqest timeout")
@@ -129,9 +131,20 @@ class Daemon:
 			i = i+1
 			j = j+tmp
 
-		infoArray = [clientAddress, orderedPort, seqenceArray, time.time()]
+		infoArray = [clientAddress, orderedPort, seqenceArray, time.time(), randomInt]
 		self.showAndLog("[Server] Seqence is " + str(seqenceArray)[1:-1])
 		return infoArray
+
+	# decodeBase64:
+	# Decodes ordered port from UDP seqence packet using Base64 encryption.
+	def decodeBase64(self, key, enc):
+		dec = []
+		enc = base64.urlsafe_b64decode(enc)
+		for i in range(len(enc)):
+			keyC = key[i % len(key)]
+			decC = chr((256 + ord(enc[i]) - ord(keyC)) % 256)
+			dec.append(decC)
+		return "".join(dec)
 
 	# loadSettings:
 	# Loads settings from /etc/port-knock.conf file and configures daemon.
