@@ -1,4 +1,5 @@
 #! /usr/bin/env python2
+import base64
 import os
 import socket
 import ssl
@@ -9,6 +10,7 @@ import random
 class App:
 	appName = "port-knock"
 	orderedPort = int()
+	orderedPortEncoded = str()
 	message = str()
 	randomInt = str()
 	seqenceArray = []
@@ -69,8 +71,17 @@ class App:
 			if not os.path.exists(self.sslCertPath):
 				print "[Daemon] Bad path or no cert file."
 				exit()
-
 			self.knockToPort()
+
+	# encodeBase64:
+	# Encodes ordered port in UDP seqence packet using Base64 encryption.
+	def encodeBase64(self, key, clear):
+		enc = []
+		for i in range(len(clear)):
+			keyC = key[i % len(key)]
+			encC = chr((ord(clear[i]) + ord(keyC)) % 256)
+			enc.append(encC)
+		return base64.urlsafe_b64encode("".join(enc))
 
 	# generateRandomInt:
 	# Generates random number which will be used to generate seqence.
@@ -106,6 +117,9 @@ class App:
 	# Send packets to various ports to unlock entire port
 	def knockToPort(self):
 		self.generateRandomInt()
+		
+		self.orderedPortEncoded = self.encodeBase64(self.randomInt, self.orderedPort)
+
 		self.message = "REQ" + self.orderedPort + "; RDM" + self.randomInt
 		isOrdered = False
 
@@ -181,7 +195,7 @@ class App:
 		print "[Client] Sending seqence of packets..."
 		knockSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
 		knockSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		clientMsg = "KNOCK" + str(self.orderedPort)
+		clientMsg = "KNOCK" + self.orderedPortEncoded
 
 		for port in self.seqenceArray:
 			print "[Client] Send packet to %s on port %d" % (self.connectAddress, port)
