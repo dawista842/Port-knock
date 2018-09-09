@@ -1,4 +1,8 @@
 # Port-knock
-Praca inżynierska pt. "Zaawansowany mechanizm otwierania portów warstwy transportu na żądanie."
+Port-knock is 
 
-Autor: Dawid Stanek
+# Installation
+
+# Additional information
+This project is part of BSc Thesis named "Advanced, on demand mechanism for opening transport layer ports on demand". You using this program on your own risk.
+Author: David Stanek
