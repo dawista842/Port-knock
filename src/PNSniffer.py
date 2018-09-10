@@ -111,7 +111,7 @@ class Sniffer:
 					continue
 
 			# Check if there are old firewall rules to remove
-			if self.firewallRules[0]+self.settingsArray[3] < time.time():
+			if self.firewallRules and self.settingsArray[3] > -1 and float(self.firewallRules[0]+self.settingsArray[3]) < time.time():
 				self.firewallRules.remove(self.firewallRules[0])
 				self.deleteFirewallRule(self.firewallRules[0])
 
