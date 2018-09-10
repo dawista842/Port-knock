@@ -9,7 +9,7 @@ Tested on CentOS 7.5.
 ```
 sudo apt-get install port-knock.deb
 ```
-## Red Hat, CentOS and derivatives
+### Red Hat, CentOS and derivatives
 ```
 sudo yum install port-knock.rpm
 ```
