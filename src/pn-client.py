@@ -8,12 +8,13 @@ import time
 import random
 
 class App:
-	appName = "port-knock"
+	appName = str()
 	orderedPort = int()
 	orderedPortEncoded = str()
 	message = str()
 	randomInt = str()
 	seqenceArray = []
+	isStaticSeq = False
 
 	# Unlock entire port
 	connectAddres = str()
@@ -25,6 +26,7 @@ class App:
 	# run:
 	# Main method where everything starts from here.
 	def run(self):
+		self.appName = sys.argv[0]
 		showHelpFlag = False
 		showUnknownParameterFlag = False
 		lastIndex = len(sys.argv)-1
@@ -38,28 +40,32 @@ class App:
 					i = i+1
 				else:
 					showUnknownParameterFlag = True
-			if sys.argv[i] == "-a" or sys.argv[i] == "--address":
+			elif sys.argv[i] == "-a" or sys.argv[i] == "--address":
 				if i+1 <= lastIndex:
 					self.address = sys.argv[i+1]
 					i = i+1
 				else:
 					showUnknownParameterFlag = True
-
-			if sys.argv[i] == "-d" or sys.argv[i] == "--destination":
+			elif sys.argv[i] == "-d" or sys.argv[i] == "--destination":
 				if i+1 <= lastIndex:
 					self.connectAddress = sys.argv[i+1].split(":")[0]
 					self.orderedPort = sys.argv[i+1].split(":")[1]
 					i = i+1
 				else:
 					showUnknownParameterFlag = True
-			elif sys.argv[i] == "-h" or sys.argv[i] + "--help":
+			elif sys.argv[i] == "-st" or sys.argv[i] == "--static-seqence":
+				if i+1 <= lastIndex:
+					self.seqenceArray = map(int, sys.argv[i+1].split(","))
+					self.isStaticSeq = True
+				else:
+					showUnknownParameterFlag = True
+			elif sys.argv[i] == "-h" or sys.argv[i] == "--help":
 				showHelpFlag = True
 			i = i+1
 
 		# Action
 		if showHelpFlag == True or len(sys.argv) == 1:
 			self.showHelp()
-
 		elif showUnknownParameterFlag == True:
 			self.showUnknownParameter()
 		elif self.orderedPort == None or self.connectAddress == None:
@@ -93,7 +99,8 @@ class App:
 			if self.randomInt[i] == '0':
 				self.randomInt = self.randomInt[:i] + str(random.randint(1,9)) + self.randomInt[i+1:]
 			i = i+1
-		self.generateSeqence()
+		if self.isStaticSeq == False:
+			self.generateSeqence()
 
 	# generateSeqence:
 	# Generates packet seqence using random number
@@ -117,9 +124,7 @@ class App:
 	# Send packets to various ports to unlock entire port
 	def knockToPort(self):
 		self.generateRandomInt()
-		
 		self.orderedPortEncoded = self.encodeBase64(self.randomInt, self.orderedPort)
-
 		self.message = "REQ" + self.orderedPort + "; RDM" + self.randomInt
 		isOrdered = False
 
@@ -173,15 +178,15 @@ class App:
 					self.sslCertPath = line.split("=")[1]
 					self.sslCertPath = self.sslCertPath.replace('"','')
 					self.sslCertPath = self.sslCertPath[:-1]
-				if line.split("=")[0] == "port":
+				elif line.split("=")[0] == "daemonPort":
 					self.daemonPort = line.split("=")[1]
 					self.daemonPort = self.daemonPort.replace('"','')
 					self.daemonPort = int(self.daemonPort[:-1])
-				if line.split("=")[0] == "requestTimeout":
+				elif line.split("=")[0] == "requestTimeout":
 					self.requestTimeout = line.split("=")[1]
 					self.requestTimeout = self.requestTimeout.replace('"','')
 					self.requestTimeout = int(self.requestTimeout[:-1])
-				if line.split("=")[0] == "firewallTimeout":
+				elif line.split("=")[0] == "firewallTimeout":
 					self.firewallTimeout = line.split("=")[1]
 					self.firewallTimeout = self.firewallTimeout.replace('"','')
 					self.firewallTimeout = int(self.firewallTimeout[:-1])
@@ -190,7 +195,6 @@ class App:
 	# sendKnockSeq:
 	# Sends packet seqence (knock-knock!).
 	def sendKnockSeq(self):
-
 		# Send seqence of packets
 		print "[Client] Sending seqence of packets..."
 		knockSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
@@ -213,15 +217,16 @@ class App:
 Syntax: %s [OPTION] [VALUE]
 
 Examples:
-%s -d 192.168.1.100:443
+%s -d 192.168.1.100:443 -st 12,345,6789
 %s --address 192.168.1.100 --port 80
 
 List of available parameters:
-	-v, --version		show version
-	-h, --help		show this message
-	-a, --address 		specify destination host
-	-p, --port		specify port request
-	-d, --destination	specify full address of device port separated by colon (see examples)
+	-v,  --version		show version
+	-h,  --help		show this message
+	-a,  --address 		specify destination host
+	-p,  --port		specify port request
+	-d,  --destination	specify full address of device port separated by colon (see examples)
+	-st, --static-seqence	force static seqence
 """
 		print (help %(self.appName, self.appName, self.appName))
 

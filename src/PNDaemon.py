@@ -1,5 +1,6 @@
 #! /usr/bin/env python2
 import os
+import subprocess
 from multiprocessing import Process, Pipe
 from PNServer import Server
 from PNSniffer import Sniffer
@@ -7,6 +8,7 @@ from PNSniffer import Sniffer
 class Daemon:
 	appName = "Port-Knock Daemon"
 	settingsArray = []
+	staticPorts = []
 	serverPipe = None
 	snifferPipe = None
 	server = None
@@ -26,7 +28,9 @@ class Daemon:
 			self.settingsArray[4] = "/var/log/port-knock.log"
 
 		# Check if firewalld exists (if not then assume that iptables is used)
-		if not os.path.exists("/usr/bin/firewalld-cmd"):
+		(isFirewallD, tmp) = subprocess.Popen(["firewall-cmd --state"], stdout=subprocess.PIPE, shell=True).communicate()
+		isFirewallD = isFirewallD[:-1]
+		if isFirewallD != "not running":
 			self.settingsArray.append("firewalld")
 			defaultZone = os.popen('firewall-cmd --get-default-zone').read()
 			defaultZone = defaultZone[:-1]
@@ -35,6 +39,7 @@ class Daemon:
 			self.settingsArray.append("iptables")
 		
 		# Init some variables
+		self.settingsArray.append(self.staticPorts)
 		self.serverPipe, self.snifferPipe = Pipe()
 		self.server = Server(self.serverPipe, self.settingsArray)
 		self.sniffer = Sniffer(self.snifferPipe, self.settingsArray)
@@ -52,22 +57,29 @@ class Daemon:
 					sslCertPath = line.split("=")[1]
 					sslCertPath = sslCertPath.replace('"', '')
 					sslCertPath = sslCertPath[:-1]
-				if line.split("=")[0] == "daemonPort":
+				elif line.split("=")[0] == "daemonPort":
 					port = line.split("=")[1]
 					port = port.replace('"', '')
 					port = int(port[:-1])
-				if line.split("=")[0] == "requestTimeout":
+				elif line.split("=")[0] == "requestTimeout":
 					requestTimeout = line.split("=")[1]
 					requestTimeout = requestTimeout.replace('"', '')
 					requestTimeout = int(requestTimeout[:-1])
-				if line.split("=")[0] == "firewallTimeout":
+				elif line.split("=")[0] == "firewallTimeout":
 					firewallTimeout = line.split("=")[1]
 					firewallTimeout = firewallTimeout.replace('"', '')
 					firewallTimeout = int(firewallTimeout[:-1])
-				if line.split("=")[0] == "logPath":
+				elif line.split("=")[0] == "logPath":
 					logPath = line.split("=")[1]
 					logPath = logPath.replace('"', '')
 					logPath = logPath[:-1]
+				elif line.split("_")[0] == "port":
+					portNumber = line.split("=")[0]
+					portNumber = int(portNumber[5:])
+					portSeq = line.split("=")[1].split("[")[1].split("]")[0].split(" ")
+					staticPort = [portNumber, map(int, portSeq)]
+					self.staticPorts.append(staticPort)
+					 
 		settingsArray = [sslCertPath, port, requestTimeout, firewallTimeout, logPath]
 		return settingsArray
 
