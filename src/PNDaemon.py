@@ -13,7 +13,7 @@ class Daemon:
 	snifferPipe = None
 	server = None
 	sniffer = None
-	configPath = "port-knock.conf"
+	configPath = "/etc/port-knock.conf"
 
 	def __init__(self):
 		self.settingsArray = self.loadSettings()
