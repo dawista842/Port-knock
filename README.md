@@ -14,7 +14,7 @@ sudo apt-get install port-knock.deb
 ```
 sudo yum install port-knock.rpm
 ```
-3. Follow instructions on screen.
+3. Follow instructions on terminal.
 
 # Additional information
 This project is part of BSc Thesis named "Advanced, on demand mechanism for opening transport layer ports on demand". You using this program on your own risk.
