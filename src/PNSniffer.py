@@ -75,12 +75,12 @@ class Sniffer:
 	# deleteFirewallRule:
 	# Deletes firewall rules when timeout expired.
 	def deleteFirewallRule(self, firewallRule):
-		if self.settingsArray[5] == "firewalld":
-			cmd = "sudo firewall-cmd --zone=%s --remove-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=tcp accept'; " % (self.settingsArray[6], firewallRule[1], firewallRule[2])
-			cmd = cmd+"sudo firewall-cmd --zone=%s --remove-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=udp accept'" % (self.settingsArray[6], firewallRule[1], firewallRule[2])
-		elif self.settingsArray[5] == "iptables":
-			cmd = "iptables -D INPUT -s %s -p tcp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT; " % (self.infoArray[0], infoArray[1])
-			cmd = cmd+"iptables -D INPUT -s %s -p udp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (self.infoArray[0], infoArray[1])
+		if self.settingsArray[6] == "firewalld":
+			cmd = "sudo firewall-cmd --zone=%s --remove-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=tcp accept'; " % (self.settingsArray[7], firewallRule[1], firewallRule[2])
+			cmd = cmd+"sudo firewall-cmd --zone=%s --remove-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=udp accept'" % (self.settingsArray[7], firewallRule[1], firewallRule[2])
+		elif self.settingsArray[6] == "iptables":
+			cmd = "iptables -D INPUT -s %s -p tcp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT; " % (firewallRule[1], firewallRule[2])
+			cmd = cmd+"iptables -D INPUT -s %s -p udp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (firewallRule[1], firewallRule[2])
 		tmp = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
 
 	# runSniffer:
@@ -131,12 +131,12 @@ class Sniffer:
 	# add a rule to firewall to unblock ordered port.
 	def unblockFirewall(self, infoArray):
 		self.showAndLog("[Sniffer] Adding rule to firewall for host %s and port %d." % (infoArray[0], infoArray[1]))
-		if self.settingsArray[5] == "firewalld":
-			cmd = "firewall-cmd --zone=%s --add-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=tcp accept'; " % (self.settingsArray[6], infoArray[0], infoArray[1])
-			cmd = cmd+"sudo firewall-cmd --zone=%s --add-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=udp accept'" % (self.settingsArray[6], infoArray[0], infoArray[1])
-		elif self.settingsArray[5] == "iptables":
-			cmd = "iptables -A INPUT -s %s -p tcp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT; " % (self.infoArray[0], infoArray[1])
-			cmd = cmd+"iptables -A INPUT -s %s -p udp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (self.infoArray[0], infoArray[1])
+		if self.settingsArray[6] == "firewalld":
+			cmd = "firewall-cmd --zone=%s --add-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=tcp accept'; " % (self.settingsArray[7], infoArray[0], infoArray[1])
+			cmd = cmd+"sudo firewall-cmd --zone=%s --add-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=udp accept'" % (self.settingsArray[7], infoArray[0], infoArray[1])
+		elif self.settingsArray[6] == "iptables":
+			cmd = "iptables -A INPUT -s %s -p tcp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT; " % (infoArray[0], infoArray[1])
+			cmd = cmd+"iptables -A INPUT -s %s -p udp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (infoArray[0], infoArray[1])
 		tmp = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
 		firewallRule = [time.time(), infoArray[0], infoArray[1]]
 		self.firewallRules.append(firewallRule)

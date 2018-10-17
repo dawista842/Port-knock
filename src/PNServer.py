@@ -37,8 +37,8 @@ class Server:
 		orderedPort = int(orderedPort)
 
 		# Search static seqence for this port
-		print self.settingsArray[7]
-		for staticPort in self.settingsArray[7]:
+		print self.settingsArray[5]
+		for staticPort in self.settingsArray[5]:
 			if staticPort[0] == orderedPort:
 				infoArray = [clientAddress, orderedPort, staticPort[1], time.time(), randomInt]
 				return infoArray

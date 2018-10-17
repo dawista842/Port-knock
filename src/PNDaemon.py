@@ -27,19 +27,24 @@ class Daemon:
 		if self.settingsArray[4] == "":
 			self.settingsArray[4] = "/var/log/port-knock.log"
 
+		self.settingsArray.append(self.staticPorts)
 		# Check if firewalld exists (if not then assume that iptables is used)
-		(isFirewallD, tmp) = subprocess.Popen(["firewall-cmd --state"], stdout=subprocess.PIPE, shell=True).communicate()
-		isFirewallD = isFirewallD[:-1]
-		if isFirewallD != "not running":
-			self.settingsArray.append("firewalld")
-			defaultZone = os.popen('firewall-cmd --get-default-zone').read()
-			defaultZone = defaultZone[:-1]
-			self.settingsArray.append(defaultZone)
+		ifFirewalldExists = os.path.isfile('/usr/bin/firewall-cmd')
+		
+		if ifFirewalldExists:
+			(isFirewallD, tmp) = subprocess.Popen(["firewall-cmd --state"], stdout=subprocess.PIPE, shell=True).communicate()
+			isFirewallD = isFirewallD[:-1]
+			if FirewallD != "not running":
+				self.settingsArray.append("firewalld")
+				defaultZone = os.popen('firewall-cmd --get-default-zone').read()
+				defaultZone = defaultZone[:-1]
+				self.settingsArray.append(defaultZone)
+			else:
+				self.settingsArray.append("iptables")
 		else:
 			self.settingsArray.append("iptables")
 		
 		# Init some variables
-		self.settingsArray.append(self.staticPorts)
 		self.serverPipe, self.snifferPipe = Pipe()
 		self.server = Server(self.serverPipe, self.settingsArray)
 		self.sniffer = Sniffer(self.snifferPipe, self.settingsArray)
