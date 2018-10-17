@@ -1,7 +1,7 @@
 # Port-knock
 Port-knock is open source project licensed on GNU GPLv2 or newer. <br />
 
-Tested on CentOS 7.5.
+Tested on CentOS 7.5 and Mint 18.3.
 
 # Installation
 1. Download proper package for your Linux distribution.
