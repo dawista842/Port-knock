@@ -1,4 +1,9 @@
 #! /usr/bin/env python2
+#
+#   File:       PNSniffer.py
+#   Author:     David Stanek
+#   License:    GNU GPLv2 or newer
+#
 import base64
 import datetime
 import os

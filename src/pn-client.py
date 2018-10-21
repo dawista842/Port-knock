@@ -1,4 +1,10 @@
 #! /usr/bin/env python2
+#
+#   File:       pn-client.py
+#   Author:     David Stanek
+#   License:    GNU GPLv2 or newer
+#
+
 import base64
 import os
 import socket

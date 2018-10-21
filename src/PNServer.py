@@ -1,4 +1,9 @@
 #! /usr/bin/env python2
+#
+#   File:       PNServer.py
+#   Author:     David Stanek
+#   License:    GNU GPLv2 or newer
+#
 import datetime
 import socket
 import ssl

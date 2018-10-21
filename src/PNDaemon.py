@@ -1,4 +1,9 @@
 #! /usr/bin/env python2
+#
+#   File:       PNDaemon.py
+#   Author:     David Stanek
+#   License:    GNU GPLv2 or newer
+#
 import os
 import subprocess
 from multiprocessing import Process, Pipe
@@ -13,7 +18,7 @@ class Daemon:
 	snifferPipe = None
 	server = None
 	sniffer = None
-	configPath = "/etc/port-knock.conf"
+	configPath = "port-knock.conf"
 
 	def __init__(self):
 		self.settingsArray = self.loadSettings()

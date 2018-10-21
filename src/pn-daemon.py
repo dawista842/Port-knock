@@ -1,4 +1,9 @@
 #! /usr/bin/env python2
+#
+#   File:       pn-daemon.py
+#   Author:     David Stanek
+#   License:    GNU GPLv2 or newer
+#
 import getpass
 from PNDaemon import Daemon
 
