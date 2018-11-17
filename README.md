@@ -8,11 +8,11 @@ Tested on CentOS 7.5 and Mint 18.3.
 2. Install package:
 ### Debian & Ubuntu
 ```
-sudo apt-get install port-knock.deb
+sudo apt-get install pn-client.deb pn-server.deb
 ```
 ### Red Hat, CentOS and derivatives
 ```
-sudo yum install port-knock.rpm
+sudo yum install pn-client.rpm pn-server.rpm
 ```
 3. Follow instructions on terminal.
 
