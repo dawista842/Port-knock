@@ -1,0 +1,48 @@
+#! /bin/bash
+#
+#   File:       add-pn-key
+#   Author:     David Stanek
+#   License:    GNU GPLv2 or newer
+#
+
+# Init some variables
+scriptName="add-pn-key"
+tmpFile="~/tmpKey.asc"
+
+# If "--help" flag is set, then show help message
+if [[ "$1" == "-h"  || "$1" == "--help" ]]; then
+	message=`cat <<EOM
+$scriptName version 2.0
+Syntax: $scriptName [OPTION] [VALUE]
+or $scriptName [ARMORED_GPG_KEY_STRING]
+
+List of available parameters:
+      -h,  --help             show this message
+      -p,  --path             use path to GPG key
+      [armored ASCII string]  import armored ASCII key
+EOM
+`
+	printf "$message\n\n"
+exit
+
+# If "--path" flag is set, then read third argument as path to *.asc file
+elif [[ "$1" == "-p" || "$1" == "--path" ]]; then
+	# Check if second argument is empty
+	if [ -z ${2+x} ]; then
+		echo "[Error] No path specified."
+		exit
+	else
+		# Import file
+		gpg --import --armor $2
+	fi
+
+# If not, then save multiline string into temporary file and then import the file.
+else
+	cat > $tmpFile << GPG_KEY
+$1
+GPG_KEY
+	# Import file
+	sudo -H -u port-knock bash -c "gpg --import --armor $tmpFile"
+	rm -f $tmpFile
+fi
+

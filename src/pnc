@@ -1,0 +1,14 @@
+#! /usr/bin/env python2
+#
+#   File:       pnc
+#   Author:     David Stanek
+#   License:    GNU GPLv2 or newer
+#
+
+import sys
+from PN_Client import PN_Client
+
+if __name__ == '__main__':
+	client = PN_Client(sys.argv)
+	client.run()
+
