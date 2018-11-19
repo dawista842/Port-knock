@@ -17,6 +17,6 @@ sudo yum install pn-client-<version>.rpm pn-server-<version>.rpm
 3. Follow instructions on terminal.
 
 # Additional information
-This project is part of BSc Thesis named "Advanced, on demand mechanism for opening transport layer ports on demand". You using this program on your own risk.
+This project is part of BSc Thesis named "Advanced mechanism for opening transport layer ports on demand". You using this program on your own risk.
 
 Author: Dawid Stanek
