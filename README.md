@@ -16,6 +16,10 @@ sudo yum install pn-client-<version>.rpm pn-server-<version>.rpm
 ```
 3. Follow instructions on terminal.
 
+*WARNING:
+Do not type passphrase for yours server GPG key. If passphrase will be set then port-knock daemon
+cannot access to private GPG key.*
+
 # Additional information
 This project is part of BSc Thesis named "Advanced mechanism for opening transport layer ports on demand". You using this program on your own risk.
 
