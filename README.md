@@ -11,7 +11,7 @@ Debian & Ubuntu:
 ```
 sudo apt-get install pn-client-<version>.deb pn-server-<version>.deb
 ```
-Red Hat, CentOS and derivatives
+Red Hat, CentOS and derivatives:
 ```
 sudo yum install pn-client-<version>.rpm pn-server-<version>.rpm
 ```
