@@ -5,16 +5,17 @@ Tested on CentOS 7.5 and Mint 18.3.
 
 # Installation
 1. Download proper package for your Linux distribution.
-2. Install package:
-### Debian & Ubuntu
+2. Install package.
+
+Debian & Ubuntu:
 ```
 sudo apt-get install pn-client-<version>.deb pn-server-<version>.deb
 ```
-### Red Hat, CentOS and derivatives
+Red Hat, CentOS and derivatives
 ```
 sudo yum install pn-client-<version>.rpm pn-server-<version>.rpm
 ```
-3. Follow instructions on terminal.
+3. Follow instructions displayed on terminal.
 
 *WARNING:  
 Do not type passphrase for yours server GPG key. If passphrase will be set then port-knock daemon
