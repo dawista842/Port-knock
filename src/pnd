@@ -10,12 +10,6 @@ import sys
 from PN_Daemon import PN_Daemon
 
 if __name__ == '__main__':
-	# Read passphrase to decrypt server's private key (this key is used to decrypt requests from clients)
-	if len(sys.argv) == 1:
-		passphrase = getpass.getpass("Server's private key passphrase:")
-	else:
-		passphrase = sys.argv[1]
-
 	daemon = PN_Daemon()
-	daemon.run(passphrase)
+	daemon.run()
 

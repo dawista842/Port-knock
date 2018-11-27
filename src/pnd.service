@@ -1,0 +1,12 @@
+[Unit]
+Description=Port-knock Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=port-knock
+ExecStart=/usr/bin/pnd
+#ExecStart=runuser port-knock -s /bin/bash -c "pnd"
+
+[Install]
+WantedBy=multi-user.target

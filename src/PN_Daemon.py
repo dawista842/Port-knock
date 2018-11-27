@@ -21,7 +21,7 @@ class PN_Daemon:
 	configPath = "/etc/port-knock.conf"
 	daemonSocket = None
 	gpg = None
-	
+
 	##
 	# Structures
 	##############
@@ -60,7 +60,7 @@ class PN_Daemon:
 				self.firewall['type'] = "iptables"
 		else:
 			self.firewall['type'] = "iptables"
-		
+
 		# Set GPG object
 		self.gpg = gnupg.GPG(gnupghome=self.daemonSettings['gpgHome'])
 
@@ -68,7 +68,7 @@ class PN_Daemon:
 		self.daemonSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		self.daemonSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.daemonSocket.bind(('', self.daemonSettings['daemonPort']))
-	
+
 	##
 	# Methods
 	##############
@@ -77,11 +77,11 @@ class PN_Daemon:
 	#	Add rule to firewall.
 	def addFirewallRule(self, ipAddress, port):
 		if self.firewall['type'] == "firewalld":
-			cmd = "firewall-cmd --zone=%s --add-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=tcp accept'; " % (self.firewall['zone'], ipAddress, port)
-			cmd = cmd+"firewall-cmd --zone=%s --add-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=udp accept'" % (self.firewall['zone'], ipAddress, port)
+			cmd = "sudo firewall-cmd --zone=%s --add-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=tcp accept'; " % (self.firewall['zone'], ipAddress, port)
+			cmd = cmd+"sudo firewall-cmd --zone=%s --add-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=udp accept'" % (self.firewall['zone'], ipAddress, port)
 		elif self.firewall['type'] == "iptables":
-			cmd = "iptables -A INPUT -s %s -p tcp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT; " % (ipAddress, port)
-			cmd = cmd+"iptables -A INPUT -s %s -p udp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (ipAddress, port)
+			cmd = "sudo iptables -A INPUT -s %s -p tcp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT; " % (ipAddress, port)
+			cmd = cmd+"sudo iptables -A INPUT -s %s -p udp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (ipAddress, port)
 		print cmd
 		subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
 
@@ -90,11 +90,11 @@ class PN_Daemon:
 	#	Delete rule from firewall.
 	def deleteFirewallRule(self, firewallRule):
 		if self.firewall['type'] == "firewalld":
-			cmd = "firewall-cmd --zone=%s --remove-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=tcp accept'; " % (self.firewall['zone'], ipAddress, port)
-			cmd = cmd+"firewall-cmd --zone=%s --remove-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=udp accept'" % (self.firewall['zone'], ipAddress, port)
+			cmd = "sudo firewall-cmd --zone=%s --remove-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=tcp accept'; " % (self.firewall['zone'], firewallRule['ipAddress'], firewallRule['orderedPort'])
+			cmd = cmd+"sudo firewall-cmd --zone=%s --remove-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=udp accept'" % (self.firewall['zone'], firewallRule['ipAddress'], firewallRule['orderedPort'])
 		elif self.firewall['type'] == "iptables":
-			cmd = "iptables -D INPUT -s %s -p tcp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT; " % (ipAddress, port)
-			cmd = cmd+"iptables -D INPUT -s %s -p udp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (ipAddress, port)
+			cmd = "sudo iptables -D INPUT -s %s -p tcp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT; " % (firewallRule['ipAddress'], firewallRule['orderedPort'])
+			cmd = cmd+"sudo iptables -D INPUT -s %s -p udp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (firewallRule['ipAddress'], firewallRule['orderedPort'])
 		subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
 
 	#
@@ -128,20 +128,13 @@ class PN_Daemon:
 					settings['logPath'] = settings['logPath'][:-1]
 		return settings
 
-	#	
+	#
 	# run:
 	# 	Main function of PN_Daemon class.
-	def run(self, passphrase):
+	def run(self):
 		# Check id gpgKey option in configuration file is set
 		if not self.daemonSettings['gpgKey']:
 			print "[Error] GPG Key is not set."
-			return
-
-		# Check if passphrase is valid.
-		challengeMessage = self.gpg.encrypt("Test", self.daemonSettings['gpgKey'])
-		challengeMessage = self.gpg.decrypt(challengeMessage.data, passphrase=passphrase)
-		if challengeMessage.ok == False:
-			self.showAndLog("[Error] Bad passphrase or GPG key not exists.")
 			return
 
 		# Infinite loop
@@ -150,7 +143,7 @@ class PN_Daemon:
 			requestContentEncrypted, header = self.daemonSocket.recvfrom(4096)
 			srcIpAddress = header[0]
 			self.showAndLog("[Info] Get encrypted request from %s." % str(srcIpAddress))
-			requestContent = self.gpg.decrypt(requestContentEncrypted, passphrase=passphrase)
+			requestContent = self.gpg.decrypt(requestContentEncrypted)
 
 			# If decryption is successful
 			if requestContent.ok == True:
@@ -181,7 +174,7 @@ class PN_Daemon:
 			if self.firewall['rules'] and self.daemonSettings['firewallTimeout'] > 0 and float(self.firewall['rules'][0]['timestamp']+self.daemonSettings['firewallTimeout']) < time.time():
 				self.showAndLog("[Info] Removing rule from firewall for host %s and port %d (Reason: timeout)." % (self.firewall['rules'][0]['ipAddress'], self.firewall['rules'][0]['orderedPort']))
 				self.deleteFirewallRule(self.firewall['rules'][0])
-				self.firewallRules.remove(self.firewall['rules'][0])
+				self.firewall['rules'].remove(self.firewall['rules'][0])
 
 	#
 	# showAndLog:
