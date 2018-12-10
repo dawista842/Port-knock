@@ -67,6 +67,7 @@ class PN_Daemon:
 		# Create raw socket
 		self.daemonSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		self.daemonSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		self.daemonSocket.setblocking(0)
 		self.daemonSocket.bind(('', self.daemonSettings['daemonPort']))
 
 	##
@@ -140,10 +141,13 @@ class PN_Daemon:
 		# Infinite loop
 		print "[Info] Daemon started successfully."
 		while True:
-			requestContentEncrypted, header = self.daemonSocket.recvfrom(4096)
-			srcIpAddress = header[0]
-			self.showAndLog("[Info] Get encrypted request from %s." % str(srcIpAddress))
-			requestContent = self.gpg.decrypt(requestContentEncrypted)
+			try:
+				requestContentEncrypted, header = self.daemonSocket.recvfrom(4096)
+				srcIpAddress = header[0]
+				self.showAndLog("[Info] Get encrypted request from %s." % str(srcIpAddress))
+				requestContent = self.gpg.decrypt(requestContentEncrypted)
+			except:
+				continue
 
 			# If decryption is successful
 			if requestContent.ok == True:
