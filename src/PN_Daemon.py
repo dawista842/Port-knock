@@ -78,8 +78,8 @@ class PN_Daemon:
 	#	Add rule to firewall.
 	def addFirewallRule(self, ipAddress, port):
 		if self.firewall['type'] == "firewalld":
-			cmd = "sudo firewall-cmd --zone=%s --add-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=tcp accept'; " % (self.firewall['zone'], ipAddress, port)
-			cmd = cmd+"sudo firewall-cmd --zone=%s --add-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=udp accept'" % (self.firewall['zone'], ipAddress, port)
+			cmd = "sudo firewall-cmd --zone=%s --add-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=tcp accept' &> /dev/null; " % (self.firewall['zone'], ipAddress, port)
+			cmd = cmd+"sudo firewall-cmd --zone=%s --add-rich-rule 'rule family=ipv4 source address=%s port port=%s protocol=udp accept' &> /dev/null" % (self.firewall['zone'], ipAddress, port)
 		elif self.firewall['type'] == "iptables":
 			cmd = "sudo iptables -A INPUT -s %s -p tcp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT; " % (ipAddress, port)
 			cmd = cmd+"sudo iptables -A INPUT -s %s -p udp --dport %s -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT" % (ipAddress, port)
