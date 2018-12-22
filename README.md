@@ -26,15 +26,15 @@ sudo yum install pn-client-<version>.rpm pn-server-<version>.rpm
 ```
 sudo -H -u port-knock bash -c "gpg --gen-key --batch <gpg_key_generation_file>"
 ```
+*WARNING:
+Do not type passphrase for your server GPG key. If passphrase will be set then port-knock daemon
+will cannot access to private GPG key.*
+
 5. Show generated GPG key.
 ```
 sudo -H -u port-knock bash -c "gpg -a --export <gpg_name>"
 ```
 where gpg_name is owner's name, e-mail, description or fingerprint.
-
-*WARNING:
-Do not type passphrase for your server GPG key. If passphrase will be set then port-knock daemon
-will cannot access to private GPG key.*
 
 # Additional information
 This project is part of BSc Thesis named "Advanced mechanism for opening transport layer ports on demand". You using this program on your own risk.
