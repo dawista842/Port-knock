@@ -24,9 +24,9 @@ sudo yum install pn-client-<version>.rpm pn-server-<version>.rpm
 3. Create GPG key generation file using following instructions: https://www.gnupg.org/documentation/manuals/gnupg/Unattended-GPG-key-generation.html
 4. Generate GPG key in port-knock user home directory by typing command:
 ```
-sudo -H -u port-knock bash -c "gpg --gen-key --batch <file>"
+sudo -H -u port-knock bash -c "gpg --gen-key --batch [file]"
 ```
-where '<file>' is path to GPG key generation file created in section 3.
+where [file] is path to GPG key generation file created in section 3.
 
 *WARNING:
 Do not type passphrase for your server GPG key. If passphrase will be set then port-knock daemon
