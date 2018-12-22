@@ -28,7 +28,7 @@ sudo -H -u port-knock bash -c "gpg --gen-key --batch <gpg_key_generation_file>"
 ```
 5. Show generated GPG key.
 ```
-sudo -H -u port-knock bash -c "gpg -a --export <gpg_name> > $portKnockHome/key.asc"
+sudo -H -u port-knock bash -c "gpg -a --export <gpg_name>"
 ```
 where gpg_name is owner's name, e-mail, description or fingerprint.
 
