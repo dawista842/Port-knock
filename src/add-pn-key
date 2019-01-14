@@ -33,7 +33,12 @@ elif [[ "$1" == "-p" || "$1" == "--path" ]]; then
 		exit
 	else
 		# Import file
-		gpg --import --armor $2
+		tmpFile=${2##*/}
+		tmpFile="/tmp/${tmpFile}"
+		cp $2 $tmpFile
+		chmod 777 $tmpFile
+		sudo -H -u port-knock bash -c "gpg --import --armor $tmpFile"
+		rm $tmpFile
 	fi
 
 # If not, then save multiline string into temporary file and then import the file.
